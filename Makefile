@@ -26,9 +26,8 @@ build: deps
 # .PHONY: docker-image
 
 docker-compose-up: # docker-image
-	docker compose -f docker-compose-dev.yaml up -d 
+	docker compose -f docker-compose-dev.yaml up -d --build --remove-orphans
 .PHONY: docker-compose-up
-# Temporarily removed from this ^ target:  --build
 
 docker-compose-down:
 	docker compose -f docker-compose-dev.yaml stop -t 1

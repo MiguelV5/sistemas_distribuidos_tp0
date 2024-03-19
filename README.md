@@ -47,14 +47,14 @@ Se modifica el script `create-multiclient-docker-compose.sh` y se genera nuevame
 Dichos volumenes son declarados con la opción de solo lectura `ro`, e incluyen exclusivamente a los archivos de configuración correspondientes.
 
 Para la ejecución y testeo:
-- Se remueven temporalmente el flag --build del target `docker-compose-up`, y el target `docker-image` en el makefile.
-- Ejecutar el target:
+- Se comenta temporalmente el target `docker-image` en el makefile.
+- Se ejecuta el target:
 
 ```bash
 make docker-compose-up
 ```
 
-- Cambiar las configuraciones y ejecutar nuevamente para ver reflejados los cambios sin haber hecho build nuevamente.
+- Se cambian las configuraciones y se ejecuta nuevamente para ver reflejados los cambios sin haber hecho build nuevamente.
 
 
 
