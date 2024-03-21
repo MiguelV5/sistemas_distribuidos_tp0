@@ -66,3 +66,28 @@ Se añadieron adicionalmente los targets `netcat-sv-test-up` y `netcat-sv-test-d
 make netcat-sv-test-up
 ```
 
+## Ejercicio 4
+
+Se agrega el manejo de señales para `client/common/client.go` y `server/common/server.py` por medio de la recepción de SIGTERM para el cierre adecuado de file descriptors. Particularmente se decidió cerrar los sockets de comunicación al mismo momento de recibir la señal, y adicionalmente para el server, se dejan de aceptar clientes que soliciten conectarse tras haber recibido la misma. 
+
+Para la verificación de funcionamiento:
+- Iniciar la comunicación:
+
+```bash
+make docker-compose-up
+
+```
+- Enviar la señal:
+
+```bash
+make docker-compose-down
+```
+
+- Observar los logs:
+
+```bash
+make docker-compose-logs
+```
+
+
+

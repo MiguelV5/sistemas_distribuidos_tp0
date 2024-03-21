@@ -1,3 +1,4 @@
+import signal
 import socket
 import logging
 
@@ -9,6 +10,14 @@ class Server:
         self._server_socket.bind(('', port))
         self._server_socket.listen(listen_backlog)
 
+        self._server_must_shutdown = False
+        signal.signal(signal.SIGTERM, self.__handle_shutdown)
+
+    def __handle_shutdown(self):
+        self._server_must_shutdown = True
+        self._server_socket.shutdown(socket.SHUT_RDWR)
+        logging.info("action: socket_closing | result: success")
+
     def run(self):
         """
         Dummy Server loop
@@ -18,11 +27,13 @@ class Server:
         finishes, servers starts to accept new connections again
         """
 
-        # TODO: Modify this program to handle signal to graceful shutdown
-        # the server
-        while True:
+        while not self._server_must_shutdown:
             client_sock = self.__accept_new_connection()
-            self.__handle_client_connection(client_sock)
+            if client_sock is not None:
+                self.__handle_client_connection(client_sock)
+
+
+
 
     def __handle_client_connection(self, client_sock):
         """
@@ -52,7 +63,12 @@ class Server:
         """
 
         # Connection arrived
-        logging.info('action: accept_connections | result: in_progress')
-        c, addr = self._server_socket.accept()
-        logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
-        return c
+        try:
+            logging.info('action: accept_connections | result: in_progress')
+            c, addr = self._server_socket.accept()
+            logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
+            return c
+        
+        except OSError as e:
+            logging.debug(f'action: accept_connections | result: fail | error: {e}')
+            return None
