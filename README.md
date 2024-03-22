@@ -69,6 +69,7 @@ make netcat-sv-test-up
 ## Ejercicio 4
 
 Se agrega el manejo de señales para `client/common/client.go` y `server/common/server.py` por medio de la recepción de SIGTERM para el cierre adecuado de file descriptors. Particularmente se decidió cerrar los sockets de comunicación al mismo momento de recibir la señal, y adicionalmente para el server, se dejan de aceptar clientes que soliciten conectarse tras haber recibido la misma. 
+Tambien se modifica el tiempo que espera docker-compose-down para enviar la señal de terminación, de tal forma que se pueda observar el cierre graceful.
 
 Para la verificación de funcionamiento:
 - Iniciar la comunicación:
@@ -83,11 +84,17 @@ make docker-compose-up
 make docker-compose-down
 ```
 
-- Observar los logs:
+- Observar los logs en una terminal adicional:
 
 ```bash
 make docker-compose-logs
 ```
+
+- Output:
+    
+```bash
+
+
 
 
 

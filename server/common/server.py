@@ -13,7 +13,8 @@ class Server:
         self._server_must_shutdown = False
         signal.signal(signal.SIGTERM, self.__handle_shutdown)
 
-    def __handle_shutdown(self):
+    def __handle_shutdown(self, _signum, _frame):
+        logging.info("action: exiting_due_to_signal | result: in_progress")
         self._server_must_shutdown = True
         self._server_socket.shutdown(socket.SHUT_RDWR)
         logging.info("action: socket_closing | result: success")
@@ -70,5 +71,4 @@ class Server:
             return c
         
         except OSError as e:
-            logging.debug(f'action: accept_connections | result: fail | error: {e}')
             return None
