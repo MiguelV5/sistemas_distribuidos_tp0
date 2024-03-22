@@ -52,4 +52,3 @@ netcat-sv-test-down:
 
 netcat-sv-test-logs:
 	docker compose -f docker-compose-sv-test.yaml logs -f
-.PHONY: docker-compose-logs
