@@ -12,3 +12,4 @@ if [ $RECEIVED_REPLY == $MSG ]; then
 else
     echo
     echo "ERR: Wrong EchoServer response: Expected: $MSG; Got netcat output: $RECEIVED_REPLY"
+fi
