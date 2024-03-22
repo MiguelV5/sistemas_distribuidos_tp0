@@ -44,8 +44,12 @@ build-netcat-image:
 	docker build -f ./netcat-sv-tester/Dockerfile -t "netcat-sv-tester:latest" .
 
 netcat-sv-test-up: build-netcat-image
-	docker compose -f docker-compose-sv-test.yaml up --build --remove-orphans
+	docker compose -f docker-compose-sv-test.yaml up -d --build --remove-orphans
 
 netcat-sv-test-down:
 	docker compose -f docker-compose-sv-test.yaml stop -t 1
 	docker compose -f docker-compose-sv-test.yaml down
+
+netcat-sv-test-logs:
+	docker compose -f docker-compose-sv-test.yaml logs -f
+.PHONY: docker-compose-logs
