@@ -94,6 +94,7 @@ make docker-compose-down
 
 - Output:
 ```bash
+...
 client2  | time="2024-03-22 21:25:58" level=info msg="action: receive_message | result: success | client_id: 2 | msg: [CLIENT 2] Message N°1\n"
 client1  | time="2024-03-22 21:26:03" level=info msg="action: socket_closing | result: success | client_id: 1"
 client1  | time="2024-03-22 21:26:03" level=info msg="action: signal_receiver_channel_shutdown | result: success | client_id: 1"
