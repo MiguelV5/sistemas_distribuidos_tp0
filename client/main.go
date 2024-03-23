@@ -35,6 +35,13 @@ func InitConfig() (*viper.Viper, error) {
 	v.BindEnv("loop", "period")
 	v.BindEnv("loop", "lapse")
 	v.BindEnv("log", "level")
+	
+	v.BindEnv("testBet", "name")
+	v.BindEnv("testBet", "surname")
+	v.BindEnv("testBet", "document_id")
+	v.BindEnv("testBet", "date_of_birth")
+	v.BindEnv("testBet", "wagered_number")
+
 
 	// Try to read configuration from config file. If config file
 	// does not exists then ReadInConfig will fail but configuration
@@ -85,6 +92,13 @@ func PrintConfig(v *viper.Viper) {
 	    v.GetDuration("loop.period"),
 	    v.GetString("log.level"),
     )
+	logrus.Infof("action: config_test_bet | result: success | player_name: %s | player_surname: %s | player_doc_id: %s | player_date_of_birth: %s | wagered_number: %s",
+		v.GetString("testBet.name"),
+		v.GetString("testBet.surname"),
+		v.GetString("testBet.document_id"),
+		v.GetString("testBet.date_of_birth"),
+		v.GetString("testBet.wagered_number"),
+	)
 }
 
 func main() {

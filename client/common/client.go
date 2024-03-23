@@ -56,8 +56,8 @@ func (c *Client) StartClientLoop() {
 	// autoincremental msgID to identify every message sent
 	msgID := 1
 
-	signal_receiver := make(chan os.Signal, 1)
-	signal.Notify(signal_receiver, syscall.SIGTERM)
+	signalReceiver := make(chan os.Signal, 1)
+	signal.Notify(signalReceiver, syscall.SIGTERM)
 
 loop:
 	// Send messages if the loopLapse threshold has not been surpassed
@@ -68,14 +68,14 @@ loop:
                 c.config.ID,
             )
 			break loop
-		case <-signal_receiver:
+		case <-signalReceiver:
 
 			c.conn.Close()
 			log.Infof("action: socket_closing | result: success | client_id: %v",
 				c.config.ID,
 			)
 
-			close(signal_receiver)
+			close(signalReceiver)
 			log.Infof("action: signal_receiver_channel_shutdown | result: success | client_id: %v",
 				c.config.ID,
 			)
@@ -88,7 +88,6 @@ loop:
 		// Create the connection the server in every loop iteration. Send an
 		c.createClientSocket()
 
-		// TODO: Modify the send to avoid short-write
 		fmt.Fprintf(
 			c.conn,
 			"[CLIENT %v] Message N°%v\n",

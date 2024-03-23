@@ -6,3 +6,9 @@ loop:
   period: "5s"
 log:
   level: "debug"
+testBet:
+  name: "Santiago Lionel"
+  surname: "Lorca"
+  document_id: 30904465
+  date_of_birth: "1999-03-17"
+  wagered_number: 7574
