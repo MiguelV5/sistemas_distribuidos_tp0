@@ -35,13 +35,12 @@ func InitConfig() (*viper.Viper, error) {
 	v.BindEnv("loop", "period")
 	v.BindEnv("loop", "lapse")
 	v.BindEnv("log", "level")
-	
+
 	v.BindEnv("testBet", "name")
 	v.BindEnv("testBet", "surname")
 	v.BindEnv("testBet", "document_id")
 	v.BindEnv("testBet", "date_of_birth")
 	v.BindEnv("testBet", "wagered_number")
-
 
 	// Try to read configuration from config file. If config file
 	// does not exists then ReadInConfig will fail but configuration
@@ -73,11 +72,11 @@ func InitLogger(logLevel string) error {
 		return err
 	}
 
-    customFormatter := &logrus.TextFormatter{
-      TimestampFormat: "2006-01-02 15:04:05",
-      FullTimestamp: false,
-    }
-    logrus.SetFormatter(customFormatter)
+	customFormatter := &logrus.TextFormatter{
+		TimestampFormat: "2006-01-02 15:04:05",
+		FullTimestamp:   false,
+	}
+	logrus.SetFormatter(customFormatter)
 	logrus.SetLevel(level)
 	return nil
 }
@@ -86,19 +85,30 @@ func InitLogger(logLevel string) error {
 // For debugging purposes only
 func PrintConfig(v *viper.Viper) {
 	logrus.Infof("action: config | result: success | client_id: %s | server_address: %s | loop_lapse: %v | loop_period: %v | log_level: %s",
-	    v.GetString("id"),
-	    v.GetString("server.address"),
-	    v.GetDuration("loop.lapse"),
-	    v.GetDuration("loop.period"),
-	    v.GetString("log.level"),
-    )
-	logrus.Infof("action: config_test_bet | result: success | player_name: %s | player_surname: %s | player_doc_id: %s | player_date_of_birth: %s | wagered_number: %s",
+		v.GetString("id"),
+		v.GetString("server.address"),
+		v.GetDuration("loop.lapse"),
+		v.GetDuration("loop.period"),
+		v.GetString("log.level"),
+	)
+	logrus.Infof("action: config_test_bet | result: success | player_name: %s | player_surname: %s | player_doc_id: %d | player_date_of_birth: %s | wagered_number: %d",
 		v.GetString("testBet.name"),
 		v.GetString("testBet.surname"),
-		v.GetString("testBet.document_id"),
+		v.GetInt("testBet.document_id"),
 		v.GetString("testBet.date_of_birth"),
-		v.GetString("testBet.wagered_number"),
+		v.GetInt("testBet.wagered_number"),
 	)
+}
+
+func initializeTestBet(v *viper.Viper) common.Bet {
+	return common.Bet{
+		PlayerName:        v.GetString("testBet.name"),
+		PlayerSurname:     v.GetString("testBet.surname"),
+		PlayerDocID:       v.GetInt("testBet.document_id"),
+		PlayerDateOfBirth: v.GetString("testBet.date_of_birth"),
+		WageredNumber:     v.GetInt("testBet.wagered_number"),
+		AgencyID:          v.GetInt("id"),
+	}
 }
 
 func main() {
@@ -114,6 +124,8 @@ func main() {
 	// Print program config with debugging purposes
 	PrintConfig(v)
 
+	testBet := initializeTestBet(v)
+
 	clientConfig := common.ClientConfig{
 		ServerAddress: v.GetString("server.address"),
 		ID:            v.GetString("id"),
@@ -122,5 +134,5 @@ func main() {
 	}
 
 	client := common.NewClient(clientConfig)
-	client.StartClientLoop()
+	client.StartClientLoop(testBet)
 }

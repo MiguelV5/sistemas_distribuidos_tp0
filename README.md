@@ -24,9 +24,8 @@ Miguel Angel Vasquez Jimenez - 107378
 
 A continuación se presentan aclaraciones y notas generales acerca del trabajo practico.
 
-##  Navegacion por los ejercicios
 
-Para facilitar la navegación por la solución de los distintos ejercicios, se dividieron los commits en distintas ramas, cada una correspondiente a un ejercicio o subejercicio. Tomar el commit final de cada rama como la solución final del ejercicio correspondiente.
+[!NOTE] Para facilitar la navegación por la solución de los distintos ejercicios, se dividieron los commits en distintas ramas, cada una correspondiente a un ejercicio o subejercicio. Tomar el commit final de cada rama como la solución final del ejercicio correspondiente.
 Cada rama surge de la rama de su ejercicio predecesor.
 
 ## Ejercicios 1 y 1.1
@@ -77,7 +76,6 @@ Para la verificación de funcionamiento:
 
 ```bash
 make docker-compose-up
-
 ```
 
 - Observar los logs en una terminal adicional:
@@ -115,7 +113,22 @@ server exited with code 0
 
 ## Ejercicio 5
 
+Se establece como protocolo de comunicación el intercambio de mensajes representados como strings con los siguientes formatos según tipo de mensaje:
 
+- (Cliente -> Servidor) Envio de datos con apuestas. Cada conjunto de parametros encerrado por un par de llaves representa una apuesta con sus respectivos datos separados por comas (`,`). Cada parametro es un par `clave:valor`. La finalización del mensaje completo se denota con el delimitador `;`.
+
+`{PlayerName:STRING,PlayerSurname:STRING,PlayerDocID:INT,PlayerDateOfBirth:STRING,WageredNumber:INT,AgencyID:INT},{ ... }, ... , { ... };`
+
+(En particular para este ejercicio los mensajes solo contienen una apuesta).
+
+- (Servidor -> Cliente) Confirmación de apuesta recibida. Se envia cuando la apuesta es almacenada adecuadamente en el servidor. Este mensaje mantiene el comportamiento de EchoServer, enviando el mismo mensaje del cliente como confirmación. Este tipo de mensaje se define para este ejercicio exclusivamente.
+
+Adicionalmente se decidió definir a las variables de la apuesta de prueba (`NOMBRE`, `APELLIDO`, `DOCUMENTO`, `NACIMIENTO` y `NUMERO`) directamente en el archivo de configuración, para mejor aprovechamiento de los targets originales del makefile sin incurrir en más modificaciones para facilidad de ejecución (cabe aclarar que si fuesen definidas como variables de entorno no afectaría en nada a la implementación actual).
+De esta forma, se puede seguir ejecutando el caso de forma sencilla:
+
+```bash
+make docker-compose-up
+```
 
 
 
