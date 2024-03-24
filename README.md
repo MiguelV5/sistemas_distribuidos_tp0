@@ -1,4 +1,4 @@
-# Informe TP0 - Sistemas Distribuidos - 1c2024
+# Informe TP0 - Sistemas Distribuidos
 
 ---
 
@@ -14,6 +14,9 @@
 <p align="center">
 <font size="+3">
 Miguel Angel Vasquez Jimenez - 107378
+<br>
+<br>
+Primer cuatrimestre - 2024
 </font>
 </p>
 <br>
@@ -25,7 +28,8 @@ Miguel Angel Vasquez Jimenez - 107378
 A continuación se presentan aclaraciones y notas generales acerca del trabajo practico.
 
 
-[!NOTE] Para facilitar la navegación por la solución de los distintos ejercicios, se dividieron los commits en distintas ramas, cada una correspondiente a un ejercicio o subejercicio. Tomar el commit final de cada rama como la solución final del ejercicio correspondiente.
+> [!NOTE] 
+> Para facilitar la navegación por la solución de los distintos ejercicios, se dividieron los commits en distintas ramas, cada una correspondiente a un ejercicio o subejercicio. Tomar el commit final de cada rama como la solución final del ejercicio correspondiente.
 Cada rama surge de la rama de su ejercicio predecesor.
 
 ## Ejercicios 1 y 1.1
