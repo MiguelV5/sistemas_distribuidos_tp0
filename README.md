@@ -123,7 +123,7 @@ Se establece como protocolo de comunicación el intercambio de mensajes represen
 
 - (Servidor -> Cliente) Confirmación de apuesta recibida. Se envia cuando la apuesta es almacenada adecuadamente en el servidor. Este mensaje mantiene el comportamiento de EchoServer, enviando el mismo mensaje del cliente como confirmación. Este tipo de mensaje se define para este ejercicio exclusivamente.
 
-Adicionalmente se decidió definir a las variables de la apuesta de prueba (`NOMBRE`, `APELLIDO`, `DOCUMENTO`, `NACIMIENTO` y `NUMERO`) directamente en el archivo de configuración, para mejor aprovechamiento de los targets originales del makefile sin incurrir en más modificaciones para facilidad de ejecución (cabe aclarar que si fuesen definidas como variables de entorno no afectaría en nada a la implementación actual).
+Adicionalmente se definieron las variables de entorno de la apuesta de prueba (`NOMBRE`, `APELLIDO`, `DOCUMENTO`, `NACIMIENTO` y `NUMERO`) en el archivo de configuración.
 De esta forma, se puede seguir ejecutando el caso de forma sencilla:
 
 ```bash
