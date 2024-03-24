@@ -2,6 +2,9 @@ package common
 
 import "fmt"
 
+const DELIMITER = ";"
+const BET_MSG_FORMAT = "{PlayerName:%s,PlayerSurname:%s,PlayerDocID:%d,PlayerDateOfBirth:%s,WageredNumber:%d,AgencyID:%d}"
+
 type Bet struct {
 	PlayerName        string
 	PlayerSurname     string
@@ -12,7 +15,7 @@ type Bet struct {
 }
 
 func (bet *Bet) ToString() string {
-	return fmt.Sprintf("{PlayerName:%s,PlayerSurname:%s,PlayerDocID:%d,PlayerDateOfBirth:%s,WageredNumber:%d,AgencyID:%d};",
+	return fmt.Sprintf(BET_MSG_FORMAT,
 		bet.PlayerName,
 		bet.PlayerSurname,
 		bet.PlayerDocID,

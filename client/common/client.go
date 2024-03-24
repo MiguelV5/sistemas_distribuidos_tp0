@@ -2,7 +2,6 @@ package common
 
 import (
 	"bufio"
-	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -51,6 +50,26 @@ func (c *Client) createClientSocket() error {
 	return nil
 }
 
+// Send a message to the server.
+// This function avoids the short write problem
+func (c *Client) sendMessage(msg string) {
+	writer := bufio.NewWriter(c.conn)
+	_, err := writer.WriteString(msg)
+	if err != nil {
+		log.Fatalf("action: send_message | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+		)
+	}
+	err = writer.Flush()
+	if err != nil {
+		log.Fatalf("action: flush_message | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+		)
+	}
+}
+
 func (_c *Client) initializeSignalReceiver() chan os.Signal {
 	signalReceiver := make(chan os.Signal, 1)
 	signal.Notify(signalReceiver, syscall.SIGTERM)
@@ -73,8 +92,8 @@ func (c *Client) handleShutdown(signalReceiver chan os.Signal) {
 func (c *Client) StartClientLoop(testBet Bet) {
 	signalReceiver := c.initializeSignalReceiver()
 
-	// autoincremental msgID to identify every message sent
-	msgID := 1
+	// autoincremental msgToSendID to identify every message sent
+	msgToSendID := 1
 
 loop:
 	// Send messages if the loopLapse threshold has not been surpassed
@@ -95,14 +114,11 @@ loop:
 		// Create the connection the server in every loop iteration. Send an
 		c.createClientSocket()
 
-		fmt.Fprintf(
-			c.conn,
-			"[CLIENT %v] Message N°%v\n",
-			c.config.ID,
-			msgID,
-		)
-		msg, err := bufio.NewReader(c.conn).ReadString('\n')
-		msgID++
+		msgToSend := testBet.ToString() + DELIMITER
+		c.sendMessage(msgToSend)
+
+		receivedMsg, err := bufio.NewReader(c.conn).ReadString(DELIMITER[0])
+		msgToSendID++
 		c.conn.Close()
 
 		if err != nil {
@@ -112,13 +128,24 @@ loop:
 			)
 			return
 		}
-		log.Infof("action: receive_message | result: success | client_id: %v | msg: %v",
-			c.config.ID,
-			msg,
-		)
+
+		if receivedMsg == msgToSend {
+			log.Infof("action: apuesta_enviada | result: success | dni: %d | numero: %d",
+				testBet.PlayerDocID,
+				testBet.WageredNumber,
+			)
+			return
+		} else {
+			log.Errorf("action: message_mismatch | result: fail | client_id: %v | sent_message: %v | received_message: %v",
+				c.config.ID,
+				msgToSend,
+				receivedMsg,
+			)
+			return
+		}
 
 		// Wait a time between sending one message and the next one
-		time.Sleep(c.config.LoopPeriod)
+		// time.Sleep(c.config.LoopPeriod)
 	}
 
 	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
