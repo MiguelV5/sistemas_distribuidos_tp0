@@ -1,6 +1,7 @@
 import signal
 import socket
 import logging
+from common import utils
 
 
 class Server:
@@ -43,17 +44,58 @@ class Server:
         If a problem arises in the communication with the client, the
         client socket will also be closed
         """
+
+        received_msg = self.__receive_message(client_sock)
+        if received_msg is None:
+            return
+        
+        bet = utils.decode_bets(received_msg)[0]
+        self.__send_message(client_sock, received_msg)
+
+        client_sock.close()
+
+        utils.store_bets([bet])
+        logging.info(f'action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}')
+
+
+
+
+    def __receive_message(self, client_sock):
+        """
+        Tries to read a complete message from a specific client.
+        It avoids short-reads
+        """
+        msg = b''
+        msg_completely_received = False
+        while not msg_completely_received:
+
+            msg_piece = client_sock.recv(utils.KiB)
+            if not msg_piece:
+                logging.error('action: receive_message | result: fail | error: connection_closed_by_client')
+                client_sock.close()
+                return None
+            
+            msg += msg_piece
+
+            if msg.endswith(utils.DELIMITER):
+                msg_completely_received = True
+
+        addr = client_sock.getpeername()
+        logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {msg}')
+        return msg.decode('utf-8')
+
+
+    def __send_message(self, client_sock, msg):
+        """
+        Send a message to a client
+        It avoids short-writes
+        """
         try:
-            # TODO: Modify the receive to avoid short-reads
-            msg = client_sock.recv(1024).rstrip().decode('utf-8')
-            addr = client_sock.getpeername()
-            logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {msg}')
-            # TODO: Modify the send to avoid short-writes
-            client_sock.send("{}\n".format(msg).encode('utf-8'))
+            client_sock.sendall(msg.encode('utf-8'))
         except OSError as e:
-            logging.error("action: receive_message | result: fail | error: {e}")
-        finally:
+            logging.error(f'action: send_message | result: fail | error: {e}')
             client_sock.close()
+        
 
     def __accept_new_connection(self):
         """

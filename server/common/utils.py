@@ -8,6 +8,9 @@ STORAGE_FILEPATH = "./bets.csv"
 """ Simulated winner number in the lottery contest. """
 LOTTERY_WINNER_NUMBER = 7574
 
+KiB = 1024
+DELIMITER = b';'
+
 
 """ A lottery bet registry. """
 class Bet:
@@ -49,3 +52,31 @@ def load_bets() -> list[Bet]:
         for row in reader:
             yield Bet(row[0], row[1], row[2], row[3], row[4], row[5])
 
+
+def decode_bets(msg: str) -> list[Bet]:
+    """
+    Decodes a message with the format:
+    "{PlayerName:str,PlayerSurname:str,PlayerDocID:int,PlayerDateOfBirth:str,WageredNumber:int,AgencyID:int},...,{...};"
+    """
+    bets = []
+   
+    msg = msg[1:-2]  # remove the first { amd the }; at the end
+
+    bet_entries = msg.split('},{')
+    for bet_entry in bet_entries:
+        bet = __decode_bet(bet_entry)
+        bets.append(bet)
+
+    return bets
+
+
+def __decode_bet(msg: str) -> Bet:
+    """
+    Decodes a message with the format:
+    "{PlayerName:str,PlayerSurname:str,PlayerDocID:int,PlayerDateOfBirth:str,WageredNumber:int,AgencyID:int}"
+    """
+    msg = msg.strip('{}')
+    keys_and_values = msg.split(',')
+    values = [kv.split(':')[1] for kv in keys_and_values]
+
+    return Bet(values[5], values[0], values[1], values[2], values[3], values[4])

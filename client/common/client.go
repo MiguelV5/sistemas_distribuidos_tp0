@@ -51,8 +51,8 @@ func (c *Client) createClientSocket() error {
 }
 
 // Send a message to the server.
-// This function avoids the short write problem
-func (c *Client) sendMessage(msg string) {
+// This function avoids the short-write problem
+func (c *Client) sendMessage(msg string) error {
 	writer := bufio.NewWriter(c.conn)
 	_, err := writer.WriteString(msg)
 	if err != nil {
@@ -60,6 +60,7 @@ func (c *Client) sendMessage(msg string) {
 			c.config.ID,
 			err,
 		)
+		return err
 	}
 	err = writer.Flush()
 	if err != nil {
@@ -67,7 +68,22 @@ func (c *Client) sendMessage(msg string) {
 			c.config.ID,
 			err,
 		)
+		return err
 	}
+	return nil
+}
+
+// Receives a message from the server.
+// This function avoids the short-read problem
+func (c *Client) receiveMessage() (string, error) {
+	msg, err := bufio.NewReader(c.conn).ReadString(DELIMITER[0])
+	if err != nil {
+		log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+		)
+	}
+	return msg, err
 }
 
 func (_c *Client) initializeSignalReceiver() chan os.Signal {
@@ -115,17 +131,15 @@ loop:
 		c.createClientSocket()
 
 		msgToSend := testBet.ToString() + DELIMITER
-		c.sendMessage(msgToSend)
+		err := c.sendMessage(msgToSend)
+		if err != nil {
+			return
+		}
 
-		receivedMsg, err := bufio.NewReader(c.conn).ReadString(DELIMITER[0])
+		receivedMsg, err := c.receiveMessage()
 		msgToSendID++
 		c.conn.Close()
-
 		if err != nil {
-			log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
-			)
 			return
 		}
 
