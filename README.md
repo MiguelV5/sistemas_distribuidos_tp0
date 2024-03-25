@@ -138,7 +138,7 @@ make docker-compose-up
 
 Se añade toda la logica de comunicación y manejo de mensajes en el servidor y cliente para poder enviar chunks de apuestas de cantidad configurable, por medio del valor de `bets_per_chunk` en `config.yaml`. A su vez se remueve la utilización de las variables `lapse` y `period` en el archivo de configuración, ya que a partir del ejercicio actual imposibilitan la comunicación completa de las apuestas dado el tamaño de los mensajes y el tiempo de espera entre ellos.
 
-Adicionalmente se agrega un mensaje nuevo al protocolo de comunicación, que es el mensaje de confirmación de recepción de un chunk de apuestas. Este mensaje se envia una vez que el servidor recibe exitosamente un chunk, para luego almacenarlo en el archivo `bets.csv`.  
+Adicionalmente se agrega un mensaje nuevo al protocolo de comunicación (Servidor -> Cliente), que es el mensaje de confirmación de recepción de un chunk de apuestas. Este mensaje se envia una vez que el servidor recibe exitosamente un chunk, para luego almacenarlo en el archivo `bets.csv`.  
 
 Cabe aclarar que se sigue manteniendo el envío de un solo mensaje por conexión, pero se envian chunks de apuestas en cada mensaje. Idealmente se podría mantener la misma conexión para enviar todos los mensajes entre cliente y servidor, pero para el ejercicio actual esto causaría que los clientes solo pudieran conectarse de manera secuencial y tendrian que esperar a que otro cliente termine todos sus envios antes de poder comenzar con los suyos. Esto es solucionable añadiendo manejo concurrente de conexiones en el servidor, sin embargo este es el objetivo del ejercicio 8. 
 
@@ -161,8 +161,4 @@ make docker-compose-logs
 ```bash
 docker exec server wc --lines bets.csv
 ```
-
-
-
-
 
