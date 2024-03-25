@@ -14,6 +14,8 @@ class Server:
         self._server_must_shutdown = False
         signal.signal(signal.SIGTERM, self.__handle_shutdown)
 
+        self._clients_that_notified_completion = []
+
     def __handle_shutdown(self, _signum, _frame):
         logging.info("action: exiting_due_to_signal | result: in_progress")
         self._server_must_shutdown = True
@@ -44,19 +46,52 @@ class Server:
         If a problem arises in the communication with the client, the
         client socket will also be closed
         """
-
         received_msg = self.__receive_message(client_sock)
         if received_msg is None:
             return
         
-        received_chunk_of_bets = utils.decode_bets(received_msg)
-        logging.info(f'action: chunk_received | result: success | agency: {received_chunk_of_bets[0].agency} | number_of_bets: {len(received_chunk_of_bets)}')
-
-        self.__send_message(client_sock, utils.CHUNK_RECEIVED_MSG_FORMAT)
+        if received_msg.startswith(utils.BETS_MSG_HEADER_FROM_CL):
+            self.__handle_bet_chunk_msg(client_sock, received_msg)
+        elif received_msg.startswith(utils.NOTIFY_MSG_HEADER_FROM_CL):
+            self.__handle_notify_msg(received_msg)
+        elif received_msg.startswith(utils.QUERY_RESULTS_MSG_HEADER_FROM_CL):
+            self.__handle_query_results_msg(client_sock, received_msg)
 
         client_sock.close()
 
+
+    def __handle_bet_chunk_msg(self, client_sock, received_msg):
+        received_chunk_of_bets = utils.decode_bets(received_msg)
+        logging.info(f'action: chunk_received | result: success | agency: {received_chunk_of_bets[0].agency} | number_of_bets: {len(received_chunk_of_bets)}')
+
+        self.__send_message(client_sock, utils.CHUNK_RECEIVED_MSG)
         utils.store_bets(received_chunk_of_bets)
+
+    def __handle_notify_msg(self, received_msg):
+        received_notifier_agency = utils.decode_notify(received_msg)
+        logging.info(f'action: notify_received | result: success | agency: {received_notifier_agency}')
+        self._clients_that_notified_completion.append(received_notifier_agency)
+        if len(self._clients_that_notified_completion) == utils.NEEDED_AGENCIES_TO_START_LOTTERY:
+            logging.info('action: sorteo | result: success')
+
+    def __handle_query_results_msg(self, client_sock, received_msg):
+        received_query_agency = utils.decode_query_for_results(received_msg)
+        logging.info(f'action: results_query_received | result: success | agency: {received_query_agency}')
+
+        if len(self._clients_that_notified_completion) != utils.NEEDED_AGENCIES_TO_START_LOTTERY:
+            msg_to_send = utils.WAIT_MSG + utils.DELIMITER_AS_STR
+        else:
+            msg_to_send = utils.RESULTS_MSG_HEADER
+            another_had_also_won = False
+            for bet in utils.load_bets():
+                if bet.agency == received_query_agency and utils.has_won(bet):
+                    if another_had_also_won:
+                        msg_to_send += ","
+                    msg_to_send += "{" + utils.RESULT_MSG_INNER_FORMAT.format(bet.document) + "}"
+                    another_had_also_won = True
+            msg_to_send += utils.DELIMITER_AS_STR
+
+        self.__send_message(client_sock, msg_to_send)
 
 
 
@@ -82,7 +117,6 @@ class Server:
                 msg_completely_received = True
 
         addr = client_sock.getpeername()
-        logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg_size: {len(msg)}')
         return msg.decode('utf-8')
 
 

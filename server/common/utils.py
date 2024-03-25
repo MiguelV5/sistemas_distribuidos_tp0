@@ -10,7 +10,16 @@ LOTTERY_WINNER_NUMBER = 7574
 
 KiB = 1024
 DELIMITER = b';'
-CHUNK_RECEIVED_MSG_FORMAT = "ACK_CHUNK;"
+DELIMITER_AS_STR = ";"
+NEEDED_AGENCIES_TO_START_LOTTERY = 5
+
+CHUNK_RECEIVED_MSG = "ACK_CHUNK;"
+BETS_MSG_HEADER_FROM_CL = "B"
+NOTIFY_MSG_HEADER_FROM_CL = "N"
+QUERY_RESULTS_MSG_HEADER_FROM_CL = "Q"
+WAIT_MSG = "W;"
+RESULTS_MSG_HEADER = "R"
+RESULT_MSG_INNER_FORMAT = "PlayerDocID:{}"
 
 
 """ A lottery bet registry. """
@@ -57,11 +66,11 @@ def load_bets() -> list[Bet]:
 def decode_bets(msg: str) -> list[Bet]:
     """
     Decodes a message with the format:
-    "{PlayerName:str,PlayerSurname:str,PlayerDocID:int,PlayerDateOfBirth:str,WageredNumber:int,AgencyID:int},...,{...};"
+    "B{PlayerName:str,PlayerSurname:str,PlayerDocID:int,PlayerDateOfBirth:str,WageredNumber:int,AgencyID:int},...,{...};"
     """
     bets = []
    
-    msg = msg[1:-2]  # remove the first { amd the }; at the end
+    msg = msg[2:-2]  # remove the header, the first { amd the trailing };
 
     bet_entries = msg.split('},{')
     for bet_entry in bet_entries:
@@ -81,3 +90,21 @@ def __decode_bet(msg: str) -> Bet:
     values = [kv.split(':')[1] for kv in keys_and_values]
 
     return Bet(values[5], values[0], values[1], values[2], values[3], values[4])
+
+
+def decode_notify(msg: str) -> int:
+    """
+    Decodes a message with the format:
+    "N{AgencyID:int};"
+    """
+    return __decode_agency(msg)
+
+def decode_query_for_results(msg: str) -> int:
+    """
+    Decodes a message with the format:
+    "Q{AgencyID:int};"
+    """
+    return __decode_agency(msg)
+
+def __decode_agency(msg: str) -> int:
+    return int(msg[11:-2])

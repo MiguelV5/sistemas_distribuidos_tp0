@@ -3,10 +3,12 @@ package common
 import (
 	"bufio"
 	"encoding/csv"
+	"fmt"
 	"io"
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -20,6 +22,7 @@ type ClientConfig struct {
 	LoopLapse     time.Duration
 	LoopPeriod    time.Duration
 	BetsPerChunk  int
+	CurrentPhase  int
 }
 
 // Client Entity that encapsulates how
@@ -74,7 +77,7 @@ func (c *Client) sendMessage(msg string) error {
 func (c *Client) receiveMessage() (string, error) {
 	msg, err := bufio.NewReader(c.conn).ReadString(DELIMITER[0])
 	if err != nil {
-		log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
+		log.Debugf("action: receive_message | result: fail | client_id: %v | error: %v",
 			c.config.ID,
 			err,
 		)
@@ -141,9 +144,99 @@ func (c *Client) StartClientLoop() {
 // Handles the communication with the server by reading the agency file and sending its contents in chunks.
 // Returns a boolean indicating whether the caller should return due to an unexpected error such as a sudden connection closure.
 func (c *Client) handleCommunicationWithServer(agencyFileReader *csv.Reader, msgToSendID *int) bool {
+	if c.config.CurrentPhase == CHUNK_SENDING_PHASE {
+		shouldReturn := c.handleChunkSendingPhase(agencyFileReader, msgToSendID)
+		if shouldReturn {
+			return true
+		}
+	} else if c.config.CurrentPhase == NOTIFYING_PHASE {
+		shouldReturn := c.handleNotifyingPhase(msgToSendID)
+		if shouldReturn {
+			return true
+		}
+	} else if c.config.CurrentPhase == RESULTS_PHASE {
+		shouldReturn := c.handleResultsPhase(msgToSendID)
+		if shouldReturn {
+			return true
+		}
+	}
+	return false
+
+}
+
+// Handles the waiting phase of the client.
+// It sends a result request message to the server and waits for them.
+// Changes the client's phase to RESULTS_PHASE if the server sends the results, and if not, it sleeps for a while before returning.
+// Returns a boolean indicating whether the caller should return, either because of an error or because the client finished all of its tasks.
+func (c *Client) handleResultsPhase(msgToSendID *int) bool {
+	agencyID, err := strconv.Atoi(c.config.ID)
+	if err != nil {
+		return true
+	}
+	log.Infof("action: results_phase_started | result: in_progress | client_id: %v",
+		c.config.ID,
+	)
+	msgToSend := QUERY_RESULTS_MSG_HEADER + fmt.Sprintf(QUERY_RESULTS_MSG_FORMAT, agencyID) + DELIMITER
+	err = c.sendMessage(msgToSend)
+	if err != nil {
+		return true
+	}
+
+	receivedMsg, err := c.receiveMessage()
+	if err != nil {
+		return true
+	}
+	receivedHeader := string(receivedMsg[0])
+
+	if receivedHeader == RESULTS_MSG_HEADER_FROM_SV {
+		winnersDocIDs := DecodeResultsMessageFromServer(receivedMsg)
+		log.Infof("action: consulta_ganadores | result: success | client_id: %v | cant_ganadores: %d | dni_ganadores: %v",
+			c.config.ID,
+			len(winnersDocIDs),
+			winnersDocIDs,
+		)
+		return true
+	} else if receivedHeader == WAIT_MSG_HEADER_FROM_SV {
+		c.conn.Close() // TO BE REMOVED ON EXERCISE 8
+		time.Sleep(c.config.LoopPeriod)
+	}
+	(*msgToSendID)++
+	return false
+}
+
+// Handles the notifying phase of the client.
+// It sends a message to the server indicating that the client has finished sending all the bets.
+// Returns a boolean indicating whether the caller should return due to an unexpected error such as a sudden connection closure.
+func (c *Client) handleNotifyingPhase(msgToSendID *int) bool {
+	agencyID, err := strconv.Atoi(c.config.ID)
+	if err != nil {
+		return true
+	}
+	msgToSend := NOTIFY_MSG_HEADER + fmt.Sprintf(NOTIFY_MSG_FORMAT, agencyID) + DELIMITER
+
+	err = c.sendMessage(msgToSend)
+	if err != nil {
+		return true
+	}
+	log.Infof("action: notify_phase_completed | result: success | client_id: %v",
+		c.config.ID,
+	)
+	c.config.CurrentPhase = RESULTS_PHASE
+
+	c.conn.Close() // TO BE REMOVED ON EXERCISE 8
+	(*msgToSendID)++
+	return false
+}
+
+// Handles the chunk sending phase of the client.
+// It reads the agency file and sends its contents in chunks to the server.
+// Returns a boolean indicating whether the caller should return due to an unexpected error such as a sudden connection closure.
+func (c *Client) handleChunkSendingPhase(agencyFileReader *csv.Reader, msgToSendID *int) bool {
 	encodedBets, sizeOfCurrentChunk, amountOfBetsRead, reachedEOF := c.tryReadChunkOfBets(agencyFileReader)
 	if reachedEOF && amountOfBetsRead == 0 {
-		return true
+		c.config.CurrentPhase = NOTIFYING_PHASE
+		c.conn.Close() // TO BE REMOVED ON EXERCISE 8
+		return false
 	} else if reachedEOF && amountOfBetsRead > 0 {
 		c.config.BetsPerChunk = amountOfBetsRead
 	}
@@ -176,7 +269,7 @@ func (c *Client) handleDeliveryOfSingleChunk(encodedBets []string, msgToSendID *
 	if err != nil {
 		return true
 	}
-	if receivedMsg == CHUNK_ACK_MSG_FORMAT_FROM_SV {
+	if receivedMsg == CHUNK_ACK_MSG_FROM_SV {
 		log.Infof("action: chunk_ack_received | result: success | client_id: %v | chunk_id: %v",
 			c.config.ID,
 			*msgToSendID,
@@ -218,7 +311,7 @@ func (c *Client) handleDeliveryOfExceedingChunks(amountOfBetsRead int, encodedBe
 		if err != nil {
 			return true
 		}
-		if receivedMsg == CHUNK_ACK_MSG_FORMAT_FROM_SV {
+		if receivedMsg == CHUNK_ACK_MSG_FROM_SV {
 			log.Infof("action: chunk_ack_received | result: success | client_id: %v | chunk_id: %v",
 				c.config.ID,
 				*msgToSendID,
@@ -247,7 +340,7 @@ func (c *Client) handleDeliveryOfExceedingChunks(amountOfBetsRead int, encodedBe
 }
 
 func produceMsgToSendFromEncodedBets(betsPerChunk int, encodedBets []string) string {
-	msgToSend := ""
+	msgToSend := BETS_MSG_HEADER
 	for i := 0; i < betsPerChunk; i++ {
 		if i == betsPerChunk-1 {
 			msgToSend += encodedBets[i] + DELIMITER

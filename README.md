@@ -162,3 +162,89 @@ make docker-compose-logs
 docker exec server wc --lines bets.csv
 ```
 
+## Ejercicio 7
+
+Para este ejercicio se añade un identificador de tipo de mensaje a la mayoría de los mensajes de la comunicacion. Para esto, se extiede el mensaje básico de envio de chunks de apuestas (`B`) definido en el ejercicio 5. Se le añade el prefijo:
+
+`B{ ... }, ... , { ... };`
+
+Adicionalmente se definen los siguientes nuevos tipos de mensajes:
+
+- (Cliente -> Servidor) Mensaje de tipo notificacion (`N`) de finalización de envio de apuestas. Este mensaje es enviado por el cliente para notificar al servidor que ha terminado de enviar todas las apuestas. Este mensaje solo contiene el identificador de la agencia que finaliza el envio. 
+
+`N{AgencyID:INT};`
+
+- (Cliente -> Servidor) Mensaje de tipo consulta de resultados (`Q`). Este mensaje es enviado por el cliente para solicitar al servidor los resultados del sorteo. Este mensaje solo contiene el identificador de la agencia que solicita los resultados. 
+
+`Q{AgencyID:INT};`
+
+- (Servidor -> Cliente) Mensaje de tipo respuesta de solicitud de resultados (`R`). Este mensaje es enviado por el servidor como respuesta positiva a la solicitud de resultados de una agencia. Este mensaje contiene los DNIs de los ganadores.
+
+`R{PlayerDocID:INT},{...},...,{...};`
+
+- (Servidor -> Cliente) Mensaje de tipo espera tras solicitud de resultados (`W`). Este mensaje es enviado por el servidor como respuesta temporal a la solicitud de resultados de una agencia, indicandole que tiene que esperar ya que no se han realizado sorteos, dado que faltan agencias por notificarse que han terminado de enviar sus apuestas. Este mensaje solo contiene el identificador del tipo de mensaje.
+
+`W;`
+
+Al finalizar el envio de apuestas se pueden observar los distintos mensajes añadidos en los logs de los clientes y el servidor.
+
+Para verificar se puede volver a realizar el mismo caso de prueba que el ejercicio 6:
+
+- Iniciar la comunicación:
+
+```bash
+make docker-compose-up
+```
+
+- Observar los logs:
+
+```bash
+make docker-compose-logs
+```
+
+- Tamaño final del archivo bets.csv (78697 lineas):
+
+```bash
+docker exec server wc --lines bets.csv
+```
+
+- Output adicional:
+
+```bash
+...
+client2  | time="2024-03-25 23:07:54" level=info msg="action: results_phase_started | result: in_progress | client_id: 2"
+client2  | time="2024-03-25 23:07:54" level=info msg="action: consulta_ganadores | result: success | client_id: 2 | cant_ganadores: 3 | dni_ganadores: [33791469 31660107 24813860]"
+client2  | time="2024-03-25 23:07:54" level=info msg="action: loop_finished | result: success | client_id: 2"
+
+...
+server   | 2024-03-25 23:07:54 INFO     action: results_query_received | result: success | agency: 2
+server   | 2024-03-25 23:07:54 INFO     action: accept_connections | result: in_progress
+client5  | time="2024-03-25 23:07:58" level=info msg="action: results_phase_started | result: in_progress | client_id: 5"
+server   | 2024-03-25 23:07:58 INFO     action: accept_connections | result: success | ip: 172.25.125.6
+server   | 2024-03-25 23:07:58 INFO     action: results_query_received | result: success | agency: 5
+server   | 2024-03-25 23:07:58 INFO     action: accept_connections | result: in_progress
+client5  | time="2024-03-25 23:07:58" level=info msg="action: consulta_ganadores | result: success | client_id: 5 | cant_ganadores: 0 | dni_ganadores: []"
+client5  | time="2024-03-25 23:07:58" level=info msg="action: loop_finished | result: success | client_id: 5"
+client1  | time="2024-03-25 23:07:58" level=info msg="action: results_phase_started | result: in_progress | client_id: 1"
+server   | 2024-03-25 23:07:58 INFO     action: accept_connections | result: success | ip: 172.25.125.3
+server   | 2024-03-25 23:07:58 INFO     action: results_query_received | result: success | agency: 1
+client4  | time="2024-03-25 23:07:58" level=info msg="action: results_phase_started | result: in_progress | client_id: 4"
+client3  | time="2024-03-25 23:07:58" level=info msg="action: results_phase_started | result: in_progress | client_id: 3"
+client1  | time="2024-03-25 23:07:58" level=info msg="action: consulta_ganadores | result: success | client_id: 1 | cant_ganadores: 2 | dni_ganadores: [30876370 24807259]"
+client1  | time="2024-03-25 23:07:58" level=info msg="action: loop_finished | result: success | client_id: 1"
+server   | 2024-03-25 23:07:58 INFO     action: accept_connections | result: in_progress
+server   | 2024-03-25 23:07:58 INFO     action: accept_connections | result: success | ip: 172.25.125.7
+server   | 2024-03-25 23:07:58 INFO     action: results_query_received | result: success | agency: 4
+client5 exited with code 0
+client4  | time="2024-03-25 23:07:59" level=info msg="action: consulta_ganadores | result: success | client_id: 4 | cant_ganadores: 2 | dni_ganadores: [34963649 35635602]"
+client4  | time="2024-03-25 23:07:59" level=info msg="action: loop_finished | result: success | client_id: 4"
+server   | 2024-03-25 23:07:59 INFO     action: accept_connections | result: in_progress
+server   | 2024-03-25 23:07:59 INFO     action: accept_connections | result: success | ip: 172.25.125.4
+server   | 2024-03-25 23:07:59 INFO     action: results_query_received | result: success | agency: 3
+client1 exited with code 0
+client3  | time="2024-03-25 23:07:59" level=info msg="action: consulta_ganadores | result: success | client_id: 3 | cant_ganadores: 3 | dni_ganadores: [22737492 23328212 28188111]"
+server   | 2024-03-25 23:07:59 INFO     action: accept_connections | result: in_progress
+client3  | time="2024-03-25 23:07:59" level=info msg="action: loop_finished | result: success | client_id: 3"
+client4 exited with code 0
+client3 exited with code 0
+```
