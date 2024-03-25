@@ -3,12 +3,8 @@ server:
   address: "server:12345"
 loop:
   lapse: "0m20s"
-  period: "5s"
+  period: "2s"
 log:
   level: "debug"
-testBet:
-  name: "Santiago Lionel"
-  surname: "Lorca"
-  document_id: 30904465
-  date_of_birth: "1999-03-17"
-  wagered_number: 7574
+bets_data:
+  bets_per_chunk: 10

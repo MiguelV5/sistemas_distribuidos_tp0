@@ -134,5 +134,5 @@ De esta forma, se puede seguir ejecutando el caso de forma sencilla:
 make docker-compose-up
 ```
 
-
+## Ejercicio 6
 

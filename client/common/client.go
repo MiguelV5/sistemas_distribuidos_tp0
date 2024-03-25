@@ -2,6 +2,8 @@ package common
 
 import (
 	"bufio"
+	"encoding/csv"
+	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -17,6 +19,7 @@ type ClientConfig struct {
 	ServerAddress string
 	LoopLapse     time.Duration
 	LoopPeriod    time.Duration
+	BetsPerChunk  int
 }
 
 // Client Entity that encapsulates how
@@ -54,15 +57,8 @@ func (c *Client) createClientSocket() error {
 // This function avoids the short-write problem
 func (c *Client) sendMessage(msg string) error {
 	writer := bufio.NewWriter(c.conn)
-	_, err := writer.WriteString(msg)
-	if err != nil {
-		log.Fatalf("action: send_message | result: fail | client_id: %v | error: %v",
-			c.config.ID,
-			err,
-		)
-		return err
-	}
-	err = writer.Flush()
+	writer.WriteString(msg)
+	err := writer.Flush()
 	if err != nil {
 		log.Fatalf("action: flush_message | result: fail | client_id: %v | error: %v",
 			c.config.ID,
@@ -105,62 +101,154 @@ func (c *Client) handleShutdown(signalReceiver chan os.Signal) {
 }
 
 // StartClientLoop Send messages to the client until some time threshold is met
-func (c *Client) StartClientLoop(testBet Bet) {
+func (c *Client) StartClientLoop() {
 	signalReceiver := c.initializeSignalReceiver()
+
+	agencyFile, err := os.Open("agency-" + c.config.ID + ".csv")
+	if err != nil {
+		log.Fatalf("action: open_agency_file | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+		)
+	}
+	defer agencyFile.Close()
+	agencyFileReader := csv.NewReader(agencyFile)
 
 	// autoincremental msgToSendID to identify every message sent
 	msgToSendID := 1
 
-loop:
-	// Send messages if the loopLapse threshold has not been surpassed
-	for timeout := time.After(c.config.LoopLapse); ; {
+	for {
+		// Create the connection the server
+		c.createClientSocket() // TO BE MOVED UP ON EXERCISE 8
+		defer c.conn.Close()   // TO BE MOVED UP ON EXERCISE 8
+
 		select {
-		case <-timeout:
-			log.Infof("action: timeout_detected | result: success | client_id: %v",
-				c.config.ID,
-			)
-			break loop
 		case <-signalReceiver:
 			c.handleShutdown(signalReceiver)
-			break loop
-
+			return
 		default:
 		}
 
-		// Create the connection the server in every loop iteration. Send an
-		c.createClientSocket()
+		currentChunkSize := 0
+		chunkStringsToConcat := []string{}
 
-		msgToSend := testBet.ToString() + DELIMITER
-		err := c.sendMessage(msgToSend)
-		if err != nil {
+		amountOfBetsRead := 0
+		reachedEOF := false
+
+		for (amountOfBetsRead < c.config.BetsPerChunk) && (currentChunkSize < MAX_CHUNK_SIZE_PER_MSG) && !reachedEOF {
+			recordAsBet, err := ReadBetFromCsvRecord(agencyFileReader, c.config.ID)
+			if err != io.EOF && err != nil {
+				log.Fatalf("action: read_agency_file | result: fail | client_id: %v | error: %v",
+					c.config.ID,
+					err,
+				)
+			}
+			if err == io.EOF {
+				reachedEOF = true
+				continue
+			}
+			amountOfBetsRead++
+
+			chunkStringsToConcat = append(chunkStringsToConcat, recordAsBet.ToString())
+			currentChunkSize += len(recordAsBet.ToString()) + 1 // Due to incoming separation commas
+		}
+		if reachedEOF && amountOfBetsRead == 0 {
 			return
+		} else if reachedEOF && amountOfBetsRead > 0 {
+			c.config.BetsPerChunk = amountOfBetsRead
 		}
 
-		receivedMsg, err := c.receiveMessage()
-		msgToSendID++
-		c.conn.Close()
-		if err != nil {
-			return
-		}
+		if !(currentChunkSize < MAX_CHUNK_SIZE_PER_MSG) {
 
-		if receivedMsg == msgToSend {
-			log.Infof("action: apuesta_enviada | result: success | dni: %d | numero: %d",
-				testBet.PlayerDocID,
-				testBet.WageredNumber,
-			)
-			return
+			betsPerChunkCorrectlyAdjusted := false
+			if amountOfBetsRead%DEFAULT_BETS_PER_CHUNK != 0 {
+				amountOfBetsInFirstChunk := amountOfBetsRead % DEFAULT_BETS_PER_CHUNK
+				c.config.BetsPerChunk = amountOfBetsInFirstChunk
+			} else {
+				c.config.BetsPerChunk = DEFAULT_BETS_PER_CHUNK
+			}
+
+			for len(chunkStringsToConcat) > 0 {
+				msgToSend := ""
+				for i := 0; i < c.config.BetsPerChunk; i++ {
+					if i == c.config.BetsPerChunk-1 {
+						msgToSend += chunkStringsToConcat[i] + DELIMITER
+					} else {
+						msgToSend += chunkStringsToConcat[i] + ","
+					}
+				}
+				err := c.sendMessage(msgToSend)
+				if err != nil {
+					return
+				}
+
+				receivedMsg, err := c.receiveMessage()
+				if err != nil {
+					return
+				}
+				if receivedMsg == CHUNK_ACK_MSG_FORMAT_FROM_SV {
+					log.Infof("action: chunk_ack_received | result: success | client_id: %v | chunk_id: %v",
+						c.config.ID,
+						msgToSendID,
+					)
+				} else {
+					log.Errorf("action: message_mismatch | result: fail | client_id: %v | chunk_id: %v | received_message: %v",
+						c.config.ID,
+						msgToSendID,
+						receivedMsg,
+					)
+					return
+				}
+				c.conn.Close() // TO BE REMOVED ON EXERCISE 8
+
+				chunkStringsToConcat = chunkStringsToConcat[c.config.BetsPerChunk:]
+				if !betsPerChunkCorrectlyAdjusted {
+					betsPerChunkCorrectlyAdjusted = true
+					c.config.BetsPerChunk = DEFAULT_BETS_PER_CHUNK
+				}
+
+				c.createClientSocket() // TO BE REMOVED ON EXERCISE 8
+				msgToSendID++
+			}
+			c.conn.Close() // TO BE REMOVED ON EXERCISE 8
+
 		} else {
-			log.Errorf("action: message_mismatch | result: fail | client_id: %v | sent_message: %v | received_message: %v",
-				c.config.ID,
-				msgToSend,
-				receivedMsg,
-			)
-			return
+
+			msgToSend := ""
+			for i := 0; i < c.config.BetsPerChunk; i++ {
+				if i == c.config.BetsPerChunk-1 {
+					msgToSend += chunkStringsToConcat[i] + DELIMITER
+				} else {
+					msgToSend += chunkStringsToConcat[i] + ","
+				}
+			}
+			err := c.sendMessage(msgToSend)
+			if err != nil {
+				return
+			}
+
+			receivedMsg, err := c.receiveMessage()
+			if err != nil {
+				return
+			}
+			if receivedMsg == CHUNK_ACK_MSG_FORMAT_FROM_SV {
+				log.Infof("action: chunk_ack_received | result: success | client_id: %v | chunk_id: %v",
+					c.config.ID,
+					msgToSendID,
+				)
+			} else {
+				log.Errorf("action: message_mismatch | result: fail | client_id: %v | chunk_id: %v | received_message: %v",
+					c.config.ID,
+					msgToSendID,
+					receivedMsg,
+				)
+				return
+			}
+			c.conn.Close() // TO BE REMOVED ON EXERCISE 8
+
+			msgToSendID++
 		}
 
-		// Wait a time between sending one message and the next one
-		// time.Sleep(c.config.LoopPeriod)
 	}
 
-	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
 }
