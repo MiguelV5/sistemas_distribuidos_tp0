@@ -7,4 +7,4 @@ loop:
 log:
   level: "debug"
 bets_data:
-  bets_per_chunk: 10
+  bets_per_chunk: 50
