@@ -46,16 +46,17 @@ class Server:
         If a problem arises in the communication with the client, the
         client socket will also be closed
         """
-        received_msg = self.__receive_message(client_sock)
-        if received_msg is None:
-            return
-        
-        if received_msg.startswith(utils.BETS_MSG_HEADER_FROM_CL):
-            self.__handle_bet_chunk_msg(client_sock, received_msg)
-        elif received_msg.startswith(utils.NOTIFY_MSG_HEADER_FROM_CL):
-            self.__handle_notify_msg(received_msg)
-        elif received_msg.startswith(utils.QUERY_RESULTS_MSG_HEADER_FROM_CL):
-            self.__handle_query_results_msg(client_sock, received_msg)
+        while not self._server_must_shutdown:
+            received_msg = self.__receive_message(client_sock)
+            if received_msg is None:
+                return
+            
+            if received_msg.startswith(utils.BETS_MSG_HEADER_FROM_CL):
+                self.__handle_bet_chunk_msg(client_sock, received_msg)
+            elif received_msg.startswith(utils.NOTIFY_MSG_HEADER_FROM_CL):
+                self.__handle_notify_msg(client_sock, received_msg)
+            elif received_msg.startswith(utils.QUERY_RESULTS_MSG_HEADER_FROM_CL):
+                self.__handle_query_results_msg(client_sock, received_msg)
 
         client_sock.close()
 
@@ -67,12 +68,13 @@ class Server:
         self.__send_message(client_sock, utils.CHUNK_RECEIVED_MSG)
         utils.store_bets(received_chunk_of_bets)
 
-    def __handle_notify_msg(self, received_msg):
+    def __handle_notify_msg(self, client_sock, received_msg):
         received_notifier_agency = utils.decode_notify(received_msg)
         logging.info(f'action: notify_received | result: success | agency: {received_notifier_agency}')
         self._clients_that_notified_completion.append(received_notifier_agency)
         if len(self._clients_that_notified_completion) == utils.NEEDED_AGENCIES_TO_START_LOTTERY:
             logging.info('action: sorteo | result: success')
+        self.__send_message(client_sock, utils.ACK_NOTIFY_MSG)
 
     def __handle_query_results_msg(self, client_sock, received_msg):
         received_query_agency = utils.decode_query_for_results(received_msg)

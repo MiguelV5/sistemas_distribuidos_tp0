@@ -248,3 +248,31 @@ client3  | time="2024-03-25 23:07:59" level=info msg="action: loop_finished | re
 client4 exited with code 0
 client3 exited with code 0
 ```
+
+## Ejercicio 8
+
+Debido a la protección de objetos que tiene el GlobalInterpreterLock de Python, se decide utilizar la biblioteca `multiprocessing` para manejar conexiones concurrentes en el servidor en lugar de `threading`.
+
+Ahora, los distintos clientes requieren de mecanismos de sincronización para:
+
+- Lectura y escritura del archivo bets.csv por medio de las funciones brindadas por la catedra (no son process-safe).
+- Acceso a la variable interna del servidor que almacena la cantidad de clientes que ya completaron el envio de apuestas, para poder decidir si se pueden enviar los resultados o no.
+
+Para lo cual se utilizaran locks de la biblioteca `multiprocessing` para brindar exclusión mutua en las secciones críticas.
+Segun la documentacion, estos locks difieren de los locks de `threading` en que de fondo utilizan IPC brindado por el sistema operativo, lo cual permite que sean utilizados por procesos distintos (como son multiples procesos no comparten memoria).
+
+Como ahora se manejan conexiones concurrentes, las mismas pueden ser establecidas en simultaneo y de forma permanente durante toda la comunicación. Esto no se podía en los ejercicios anteriores que requerian establecer una conexion por cada uno o dos mensajes intercambiados, ya que de lo contrario los clientes debían esperar a que otro cliente terminara todo su proceso de comunicación antes de poder comenzar el suyo. Esto generaba un bloqueo ya que si un cliente terminaba con sus chunks, quedaría permanentemente esperando a los resultados dado que los otros clientes no pueden conectarse. Esto se soluciona paralelizando las conexiones. (Como nota auxiliar, se añadió un mensaje minimo de ack de confirmación para el mensaje notificacion de finalización de envio de apuestas. Anteriormente el servidor no respondia a este mensaje por la unicidad de conexion por mensaje, pero ahora al estar en un ambiente concurrente puede generar problemas con el formato de la notificación y las queries de resultados).
+
+Para realizar una verificación nuevamente se puede realizar el mismo caso de prueba que los ultimos dos ejercicios:
+
+```bash
+make docker-compose-up
+```
+
+```bash
+make docker-compose-logs
+```
+
+```bash
+docker exec server wc --lines bets.csv
+```

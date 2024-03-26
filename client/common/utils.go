@@ -10,9 +10,10 @@ import (
 const (
 	DELIMITER = ";"
 
-	BETS_MSG_HEADER       = "B"
-	BET_MSG_FORMAT        = "{PlayerName:%s,PlayerSurname:%s,PlayerDocID:%d,PlayerDateOfBirth:%s,WageredNumber:%d,AgencyID:%d}"
-	CHUNK_ACK_MSG_FROM_SV = "ACK_CHUNK;"
+	BETS_MSG_HEADER        = "B"
+	BET_MSG_FORMAT         = "{PlayerName:%s,PlayerSurname:%s,PlayerDocID:%d,PlayerDateOfBirth:%s,WageredNumber:%d,AgencyID:%d}"
+	CHUNK_ACK_MSG_FROM_SV  = "ACK_CHUNK;"
+	ACK_NOTIFY_MSG_FROM_SV = "ACK_NOTIFY;"
 
 	NOTIFY_MSG_HEADER = "N"
 	NOTIFY_MSG_FORMAT = "{AgencyID:%d}"
