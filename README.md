@@ -63,10 +63,18 @@ make docker-compose-up
 
 Para el test se define una nueva imagen `netcat-tester` que utilice el script `sv-test.sh` en su correspondiente contenedor, que se comunique con el servidor a traves de la misma network definida en `docker-compose-sv-test.yaml`.
 
-Se añadieron adicionalmente los targets `netcat-sv-test-up` y `netcat-sv-test-down` al makefile para correr la prueba facilmente de la forma:
+Se añadieron los targets:
 
 ```bash
 make netcat-sv-test-up
+```
+
+```bash
+make netcat-sv-test-logs
+```
+
+```bash
+make netcat-sv-test-down
 ```
 
 ## Ejercicio 4
@@ -172,19 +180,19 @@ Adicionalmente se definen los siguientes nuevos tipos de mensajes:
 
 - (Cliente -> Servidor) Mensaje de tipo notificacion (`N`) de finalización de envio de apuestas. Este mensaje es enviado por el cliente para notificar al servidor que ha terminado de enviar todas las apuestas. Este mensaje solo contiene el identificador de la agencia que finaliza el envio. 
 
-`N{AgencyID:INT};`
+> `N{AgencyID:INT};`
 
 - (Cliente -> Servidor) Mensaje de tipo consulta de resultados (`Q`). Este mensaje es enviado por el cliente para solicitar al servidor los resultados del sorteo. Este mensaje solo contiene el identificador de la agencia que solicita los resultados. 
 
-`Q{AgencyID:INT};`
+> `Q{AgencyID:INT};`
 
 - (Servidor -> Cliente) Mensaje de tipo respuesta de solicitud de resultados (`R`). Este mensaje es enviado por el servidor como respuesta positiva a la solicitud de resultados de una agencia. Este mensaje contiene los DNIs de los ganadores.
 
-`R{PlayerDocID:INT},{...},...,{...};`
+> `R{PlayerDocID:INT},{...},...,{...};`
 
 - (Servidor -> Cliente) Mensaje de tipo espera tras solicitud de resultados (`W`). Este mensaje es enviado por el servidor como respuesta temporal a la solicitud de resultados de una agencia, indicandole que tiene que esperar ya que no se han realizado sorteos, dado que faltan agencias por notificarse que han terminado de enviar sus apuestas. Este mensaje solo contiene el identificador del tipo de mensaje.
 
-`W;`
+> `W;`
 
 Al finalizar el envio de apuestas se pueden observar los distintos mensajes añadidos en los logs de los clientes y el servidor.
 
