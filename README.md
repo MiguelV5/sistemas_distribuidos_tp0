@@ -129,9 +129,13 @@ Se establece como protocolo de comunicación el intercambio de mensajes represen
 
 - (Cliente -> Servidor) Envio de datos con apuestas. Cada conjunto de parametros encerrado por un par de llaves representa una apuesta con sus respectivos datos separados por comas (`,`). Cada parametro es un par `clave:valor`. La finalización del mensaje completo se denota con el delimitador `;`.
 
-`{PlayerName:STRING,PlayerSurname:STRING,PlayerDocID:INT,PlayerDateOfBirth:STRING,WageredNumber:INT,AgencyID:INT},{ ... }, ... , { ... };`
+<p align="center">
+<code>{PlayerName:STRING,PlayerSurname:STRING,PlayerDocID:INT,PlayerDateOfBirth:STRING,WageredNumber:INT,AgencyID:INT},{ ... }, ... , { ... };</code>
+</p>
 
+<p align="center">
 (En particular para este ejercicio los mensajes solo contienen una apuesta).
+</p>
 
 - (Servidor -> Cliente) Confirmación de apuesta recibida. Se envia cuando la apuesta es almacenada adecuadamente en el servidor. Este mensaje mantiene el comportamiento de EchoServer, enviando el mismo mensaje del cliente como confirmación. Este tipo de mensaje se define para este ejercicio exclusivamente.
 
@@ -172,27 +176,39 @@ docker exec server wc --lines bets.csv
 
 ## Ejercicio 7
 
-Para este ejercicio se añade un identificador de tipo de mensaje a la mayoría de los mensajes de la comunicacion. Para esto, se extiede el mensaje básico de envio de chunks de apuestas (`B`) definido en el ejercicio 5. Se le añade el prefijo:
+Para este ejercicio se añade un identificador de tipo de mensaje como header para la comunicacion. Para esto, se extiede el mensaje básico de envio de chunks de apuestas definido en el ejercicio 5. Se le añade el prefijo `B`:
 
-`B{ ... }, ... , { ... };`
+<p align="center">
+<code>
+B{ ... }, ... , { ... };
+</code>
+</p>
 
 Adicionalmente se definen los siguientes nuevos tipos de mensajes:
 
 - (Cliente -> Servidor) Mensaje de tipo notificacion (`N`) de finalización de envio de apuestas. Este mensaje es enviado por el cliente para notificar al servidor que ha terminado de enviar todas las apuestas. Este mensaje solo contiene el identificador de la agencia que finaliza el envio. 
 
-> `N{AgencyID:INT};`
+<p align="center">
+<code>N{AgencyID:INT};</code>
+</p>
 
 - (Cliente -> Servidor) Mensaje de tipo consulta de resultados (`Q`). Este mensaje es enviado por el cliente para solicitar al servidor los resultados del sorteo. Este mensaje solo contiene el identificador de la agencia que solicita los resultados. 
 
-> `Q{AgencyID:INT};`
+<p align="center">
+<code>Q{AgencyID:INT};</code>
+</p>
 
 - (Servidor -> Cliente) Mensaje de tipo respuesta de solicitud de resultados (`R`). Este mensaje es enviado por el servidor como respuesta positiva a la solicitud de resultados de una agencia. Este mensaje contiene los DNIs de los ganadores.
 
-> `R{PlayerDocID:INT},{...},...,{...};`
+<p align="center">
+<code>R{PlayerDocID:INT},{...},...,{...};</code>
+</p>
 
 - (Servidor -> Cliente) Mensaje de tipo espera tras solicitud de resultados (`W`). Este mensaje es enviado por el servidor como respuesta temporal a la solicitud de resultados de una agencia, indicandole que tiene que esperar ya que no se han realizado sorteos, dado que faltan agencias por notificarse que han terminado de enviar sus apuestas. Este mensaje solo contiene el identificador del tipo de mensaje.
 
-> `W;`
+<p align="center">
+<code>W;</code>
+</p>
 
 Al finalizar el envio de apuestas se pueden observar los distintos mensajes añadidos en los logs de los clientes y el servidor.
 
