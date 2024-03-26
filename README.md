@@ -179,9 +179,7 @@ docker exec server wc --lines bets.csv
 Para este ejercicio se añade un identificador de tipo de mensaje como header para la comunicacion. Para esto, se extiede el mensaje básico de envio de chunks de apuestas definido en el ejercicio 5. Se le añade el prefijo `B`:
 
 <p align="center">
-<code>
-B{ ... }, ... , { ... };
-</code>
+<code>B{ ... }, ... , { ... };</code>
 </p>
 
 Adicionalmente se definen los siguientes nuevos tipos de mensajes:
