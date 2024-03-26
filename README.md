@@ -276,3 +276,41 @@ make docker-compose-logs
 ```bash
 docker exec server wc --lines bets.csv
 ```
+
+Output:
+
+```bash
+...
+client1  | time="2024-03-26 01:56:13" level=info msg="action: chunk_ack_received | result: success | client_id: 1 | chunk_id: 539"
+client1  | time="2024-03-26 01:56:13" level=info msg="action: notify_ack_received | result: success | client_id: 1"
+client1  | time="2024-03-26 01:56:13" level=info msg="action: notify_phase_completed | result: success | client_id: 1"
+client1  | time="2024-03-26 01:56:13" level=info msg="action: results_phase_started | result: in_progress | client_id: 1"
+client1  | time="2024-03-26 01:56:13" level=info msg="action: consulta_ganadores | result: success | client_id: 1 | cant_ganadores: 2 | dni_ganadores: [30876370 24807259]"
+client1  | time="2024-03-26 01:56:13" level=info msg="action: loop_finished | result: success | client_id: 1"
+server   | 2024-03-26 01:56:12 INFO     action: chunk_received | result: success | agency: 3 | number_of_bets: 50
+...
+client5  | time="2024-03-26 01:56:17" level=info msg="action: results_phase_started | result: in_progress | client_id: 5"
+server   | 2024-03-26 01:56:17 INFO     action: results_query_received | result: success | agency: 5
+client3  | time="2024-03-26 01:56:17" level=info msg="action: results_phase_started | result: in_progress | client_id: 3"
+server   | 2024-03-26 01:56:17 INFO     action: results_query_received | result: success | agency: 3
+client4  | time="2024-03-26 01:56:17" level=info msg="action: results_phase_started | result: in_progress | client_id: 4"
+server   | 2024-03-26 01:56:17 INFO     action: results_query_received | result: success | agency: 4
+client5  | time="2024-03-26 01:56:18" level=info msg="action: consulta_ganadores | result: success | client_id: 5 | cant_ganadores: 0 | dni_ganadores: []"
+client5  | time="2024-03-26 01:56:18" level=info msg="action: loop_finished | result: success | client_id: 5"
+server   | 2024-03-26 01:56:18 DEBUG    action: receive_message | result: fail | error: connection_closed_by_client
+client2  | time="2024-03-26 01:56:18" level=info msg="action: results_phase_started | result: in_progress | client_id: 2"
+server   | 2024-03-26 01:56:18 INFO     action: results_query_received | result: success | agency: 2
+client3  | time="2024-03-26 01:56:18" level=info msg="action: consulta_ganadores | result: success | client_id: 3 | cant_ganadores: 3 | dni_ganadores: [22737492 23328212 28188111]"
+server   | 2024-03-26 01:56:18 DEBUG    action: receive_message | result: fail | error: connection_closed_by_client
+client3  | time="2024-03-26 01:56:18" level=info msg="action: loop_finished | result: success | client_id: 3"
+client5 exited with code 0
+client4  | time="2024-03-26 01:56:18" level=info msg="action: consulta_ganadores | result: success | client_id: 4 | cant_ganadores: 2 | dni_ganadores: [34963649 35635602]"
+client4  | time="2024-03-26 01:56:18" level=info msg="action: loop_finished | result: success | client_id: 4"
+server   | 2024-03-26 01:56:18 DEBUG    action: receive_message | result: fail | error: connection_closed_by_client
+client3 exited with code 0
+client2  | time="2024-03-26 01:56:18" level=info msg="action: consulta_ganadores | result: success | client_id: 2 | cant_ganadores: 3 | dni_ganadores: [33791469 31660107 24813860]"
+client2  | time="2024-03-26 01:56:18" level=info msg="action: loop_finished | result: success | client_id: 2"
+server   | 2024-03-26 01:56:18 DEBUG    action: receive_message | result: fail | error: connection_closed_by_client
+client4 exited with code 0
+client2 exited with code 0
+```

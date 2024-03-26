@@ -1,3 +1,4 @@
+import multiprocessing
 import signal
 import socket
 import logging
@@ -14,7 +15,8 @@ class Server:
         self._server_must_shutdown = False
         signal.signal(signal.SIGTERM, self.__handle_shutdown)
 
-        self._clients_that_notified_completion = []
+        self._clients_that_notified_completion = multiprocessing.Value('i', 0)
+        self._storefile_lock = multiprocessing.Lock()
 
     def __handle_shutdown(self, _signum, _frame):
         logging.info("action: exiting_due_to_signal | result: in_progress")
@@ -34,7 +36,11 @@ class Server:
         while not self._server_must_shutdown:
             client_sock = self.__accept_new_connection()
             if client_sock is not None:
-                self.__handle_client_connection(client_sock)
+                client_conn_process = multiprocessing.Process(target=self.__handle_client_connection, args=(client_sock,))
+                client_conn_process.start()
+                
+        for client_conn_process in multiprocessing.active_children():
+            client_conn_process.join()                
 
 
 
@@ -65,33 +71,39 @@ class Server:
         received_chunk_of_bets = utils.decode_bets(received_msg)
         logging.info(f'action: chunk_received | result: success | agency: {received_chunk_of_bets[0].agency} | number_of_bets: {len(received_chunk_of_bets)}')
 
+        with self._storefile_lock:
+            utils.store_bets(received_chunk_of_bets)
         self.__send_message(client_sock, utils.CHUNK_RECEIVED_MSG)
-        utils.store_bets(received_chunk_of_bets)
+
 
     def __handle_notify_msg(self, client_sock, received_msg):
         received_notifier_agency = utils.decode_notify(received_msg)
         logging.info(f'action: notify_received | result: success | agency: {received_notifier_agency}')
-        self._clients_that_notified_completion.append(received_notifier_agency)
-        if len(self._clients_that_notified_completion) == utils.NEEDED_AGENCIES_TO_START_LOTTERY:
-            logging.info('action: sorteo | result: success')
+        with self._clients_that_notified_completion.get_lock():
+            self._clients_that_notified_completion.value += 1
+            if self._clients_that_notified_completion.value == utils.NEEDED_AGENCIES_TO_START_LOTTERY:
+                logging.info('action: sorteo | result: success')
         self.__send_message(client_sock, utils.ACK_NOTIFY_MSG)
+
 
     def __handle_query_results_msg(self, client_sock, received_msg):
         received_query_agency = utils.decode_query_for_results(received_msg)
         logging.info(f'action: results_query_received | result: success | agency: {received_query_agency}')
 
-        if len(self._clients_that_notified_completion) != utils.NEEDED_AGENCIES_TO_START_LOTTERY:
-            msg_to_send = utils.WAIT_MSG + utils.DELIMITER_AS_STR
-        else:
-            msg_to_send = utils.RESULTS_MSG_HEADER
-            another_had_also_won = False
-            for bet in utils.load_bets():
-                if bet.agency == received_query_agency and utils.has_won(bet):
-                    if another_had_also_won:
-                        msg_to_send += ","
-                    msg_to_send += "{" + utils.RESULT_MSG_INNER_FORMAT.format(bet.document) + "}"
-                    another_had_also_won = True
-            msg_to_send += utils.DELIMITER_AS_STR
+        with self._clients_that_notified_completion.get_lock():
+            if self._clients_that_notified_completion.value != utils.NEEDED_AGENCIES_TO_START_LOTTERY:
+                msg_to_send = utils.WAIT_MSG + utils.DELIMITER_AS_STR
+            else:
+                msg_to_send = utils.RESULTS_MSG_HEADER
+                another_had_also_won = False
+                with self._storefile_lock:
+                    for bet in utils.load_bets():
+                        if bet.agency == received_query_agency and utils.has_won(bet):
+                            if another_had_also_won:
+                                msg_to_send += ","
+                            msg_to_send += "{" + utils.RESULT_MSG_INNER_FORMAT.format(bet.document) + "}"
+                            another_had_also_won = True
+                    msg_to_send += utils.DELIMITER_AS_STR
 
         self.__send_message(client_sock, msg_to_send)
 
@@ -109,7 +121,7 @@ class Server:
 
             msg_piece = client_sock.recv(utils.KiB)
             if not msg_piece:
-                logging.error('action: receive_message | result: fail | error: connection_closed_by_client')
+                logging.debug('action: receive_message | result: fail | error: connection_closed_by_client')
                 client_sock.close()
                 return None
             
