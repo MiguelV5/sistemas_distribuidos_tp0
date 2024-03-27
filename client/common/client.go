@@ -120,10 +120,11 @@ func (c *Client) StartClientLoop() {
 	// autoincremental msgToSendID to identify every message sent
 	msgToSendID := 1
 
+	// Create the connection the server
+	c.createClientSocket()
+	defer c.conn.Close()
+
 	for {
-		// Create the connection the server
-		c.createClientSocket() // TO BE MOVED OUT OF THE LOOP ON EXERCISE 8
-		defer c.conn.Close()   // TO BE MOVED OUT OF THE LOOP ON EXERCISE 8
 
 		select {
 		case <-signalReceiver:
@@ -197,7 +198,6 @@ func (c *Client) handleResultsPhase(msgToSendID *int) bool {
 		)
 		return true
 	} else if receivedHeader == WAIT_MSG_HEADER_FROM_SV {
-		c.conn.Close() // TO BE REMOVED ON EXERCISE 8
 		time.Sleep(c.config.LoopPeriod)
 	}
 	(*msgToSendID)++
@@ -218,12 +218,28 @@ func (c *Client) handleNotifyingPhase(msgToSendID *int) bool {
 	if err != nil {
 		return true
 	}
+
+	receivedMsg, err := c.receiveMessage()
+	if err != nil {
+		return true
+	}
+	if receivedMsg == ACK_NOTIFY_MSG_FROM_SV {
+		log.Infof("action: notify_ack_received | result: success | client_id: %v",
+			c.config.ID,
+		)
+	} else {
+		log.Errorf("action: message_mismatch | result: fail | client_id: %v | received_message: %v",
+			c.config.ID,
+			receivedMsg,
+		)
+		return true
+	}
+
 	log.Infof("action: notify_phase_completed | result: success | client_id: %v",
 		c.config.ID,
 	)
 	c.config.CurrentPhase = RESULTS_PHASE
 
-	c.conn.Close() // TO BE REMOVED ON EXERCISE 8
 	(*msgToSendID)++
 	return false
 }
@@ -235,7 +251,6 @@ func (c *Client) handleChunkSendingPhase(agencyFileReader *csv.Reader, msgToSend
 	encodedBets, sizeOfCurrentChunk, amountOfBetsRead, reachedEOF := c.tryReadChunkOfBets(agencyFileReader)
 	if reachedEOF && amountOfBetsRead == 0 {
 		c.config.CurrentPhase = NOTIFYING_PHASE
-		c.conn.Close() // TO BE REMOVED ON EXERCISE 8
 		return false
 	} else if reachedEOF && amountOfBetsRead > 0 {
 		c.config.BetsPerChunk = amountOfBetsRead
@@ -282,7 +297,6 @@ func (c *Client) handleDeliveryOfSingleChunk(encodedBets []string, msgToSendID *
 		)
 		return true
 	}
-	c.conn.Close() // TO BE REMOVED ON EXERCISE 8
 
 	(*msgToSendID)++
 	return false
@@ -324,7 +338,6 @@ func (c *Client) handleDeliveryOfExceedingChunks(amountOfBetsRead int, encodedBe
 			)
 			return true
 		}
-		c.conn.Close() // TO BE REMOVED ON EXERCISE 8
 
 		encodedBets = encodedBets[c.config.BetsPerChunk:]
 		if !betsPerChunkCorrectlyAdjusted {
@@ -332,10 +345,8 @@ func (c *Client) handleDeliveryOfExceedingChunks(amountOfBetsRead int, encodedBe
 			c.config.BetsPerChunk = DEFAULT_BETS_PER_CHUNK
 		}
 
-		c.createClientSocket() // TO BE REMOVED ON EXERCISE 8
 		(*msgToSendID)++
 	}
-	c.conn.Close() // TO BE REMOVED ON EXERCISE 8
 	return false
 }
 
