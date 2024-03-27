@@ -66,3 +66,54 @@ Se añadieron adicionalmente los targets `netcat-sv-test-up` y `netcat-sv-test-d
 make netcat-sv-test-up
 ```
 
+## Ejercicio 4
+
+Se agrega el manejo de señales para `client/common/client.go` y `server/common/server.py` por medio de la recepción de SIGTERM para el cierre adecuado de file descriptors. Particularmente se decidió cerrar los sockets de comunicación al mismo momento de recibir la señal, y adicionalmente para el server, se dejan de aceptar clientes que soliciten conectarse tras haber recibido la misma. 
+Tambien se modifica el tiempo que espera docker-compose-down para enviar la señal de terminación, de tal forma que se pueda observar el cierre graceful.
+
+Para la verificación de funcionamiento:
+
+- Iniciar la comunicación:
+
+```bash
+make docker-compose-up
+
+```
+
+- Observar los logs en una terminal adicional:
+
+```bash
+make docker-compose-logs
+```
+
+- Enviar la señal:
+
+```bash
+make docker-compose-down
+```
+
+- Output:
+```bash
+...
+client2  | time="2024-03-22 21:25:58" level=info msg="action: receive_message | result: success | client_id: 2 | msg: [CLIENT 2] Message N°1\n"
+client1  | time="2024-03-22 21:26:03" level=info msg="action: socket_closing | result: success | client_id: 1"
+client1  | time="2024-03-22 21:26:03" level=info msg="action: signal_receiver_channel_shutdown | result: success | client_id: 1"
+client1  | time="2024-03-22 21:26:03" level=info msg="action: loop_finished | result: success | client_id: 1"
+client2  | time="2024-03-22 21:26:03" level=info msg="action: socket_closing | result: success | client_id: 2"
+client2  | time="2024-03-22 21:26:03" level=info msg="action: signal_receiver_channel_shutdown | result: success | client_id: 2"
+client2  | time="2024-03-22 21:26:03" level=info msg="action: loop_finished | result: success | client_id: 2"
+client3  | time="2024-03-22 21:26:03" level=info msg="action: socket_closing | result: success | client_id: 3"
+client3  | time="2024-03-22 21:26:03" level=info msg="action: signal_receiver_channel_shutdown | result: success | client_id: 3"
+client3  | time="2024-03-22 21:26:03" level=info msg="action: loop_finished | result: success | client_id: 3"
+client1 exited with code 0
+client2 exited with code 0
+client3 exited with code 0
+server   | 2024-03-22 21:26:04 INFO     action: exiting_due_to_signal | result: in_progress
+server   | 2024-03-22 21:26:04 INFO     action: socket_closing | result: success
+server exited with code 0
+```
+
+
+
+
+

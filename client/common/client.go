@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"net"
 	"time"
+	"os"
+	"os/signal"
+	"syscall"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -48,8 +51,29 @@ func (c *Client) createClientSocket() error {
 	return nil
 }
 
+
+func (_c *Client) initializeSignalReceiver() chan os.Signal {
+	signalReceiver := make(chan os.Signal, 1)
+	signal.Notify(signalReceiver, syscall.SIGTERM)
+	return signalReceiver
+}
+
+func (c *Client) handleShutdown(signalReceiver chan os.Signal){
+	c.conn.Close()
+	log.Infof("action: socket_closing | result: success | client_id: %v",
+		c.config.ID,
+	)
+
+	close(signalReceiver)
+	log.Infof("action: signal_receiver_channel_shutdown | result: success | client_id: %v",
+		c.config.ID,
+	)
+}
+
 // StartClientLoop Send messages to the client until some time threshold is met
 func (c *Client) StartClientLoop() {
+	signalReceiver := c.initializeSignalReceiver()
+
 	// autoincremental msgID to identify every message sent
 	msgID := 1
 
@@ -62,6 +86,10 @@ loop:
                 c.config.ID,
             )
 			break loop
+		case <-signalReceiver:
+			c.handleShutdown(signalReceiver)
+			break loop
+
 		default:
 		}
 
