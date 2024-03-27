@@ -113,6 +113,7 @@ func main() {
 		LoopLapse:     v.GetDuration("loop.lapse"),
 		LoopPeriod:    v.GetDuration("loop.period"),
 		BetsPerChunk:  v.GetInt("bets_data.bets_per_chunk"),
+		CurrentPhase:  0,
 	}
 
 	client := common.NewClient(clientConfig)
