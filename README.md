@@ -56,5 +56,13 @@ make docker-compose-up
 
 - Se cambian las configuraciones y se ejecuta nuevamente para ver reflejados los cambios sin haber hecho build nuevamente.
 
+## Ejercicio 3
 
+Para el test se define una nueva imagen `netcat-tester` que utilice el script `sv-test.sh` en su correspondiente contenedor, que se comunique con el servidor a traves de la misma network definida en `docker-compose-sv-test.yaml`.
+
+Se añadieron adicionalmente los targets `netcat-sv-test-up` y `netcat-sv-test-down` al makefile para correr la prueba facilmente de la forma:
+
+```bash
+make netcat-sv-test-up
+```
 
