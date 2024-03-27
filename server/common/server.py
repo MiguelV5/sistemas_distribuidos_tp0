@@ -49,13 +49,14 @@ class Server:
         if received_msg is None:
             return
         
-        bet = utils.decode_bets(received_msg)[0]
-        self.__send_message(client_sock, received_msg)
+        received_chunk_of_bets = utils.decode_bets(received_msg)
+        logging.info(f'action: chunk_received | result: success | agency: {received_chunk_of_bets[0].agency} | number_of_bets: {len(received_chunk_of_bets)}')
+
+        self.__send_message(client_sock, utils.CHUNK_RECEIVED_MSG_FORMAT)
 
         client_sock.close()
 
-        utils.store_bets([bet])
-        logging.info(f'action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}')
+        utils.store_bets(received_chunk_of_bets)
 
 
 
@@ -81,7 +82,7 @@ class Server:
                 msg_completely_received = True
 
         addr = client_sock.getpeername()
-        logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {msg}')
+        logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg_size: {len(msg)}')
         return msg.decode('utf-8')
 
 

@@ -10,6 +10,7 @@ LOTTERY_WINNER_NUMBER = 7574
 
 KiB = 1024
 DELIMITER = b';'
+CHUNK_RECEIVED_MSG_FORMAT = "ACK_CHUNK;"
 
 
 """ A lottery bet registry. """
@@ -72,8 +73,8 @@ def decode_bets(msg: str) -> list[Bet]:
 
 def __decode_bet(msg: str) -> Bet:
     """
-    Decodes a message with the format:
-    "{PlayerName:str,PlayerSurname:str,PlayerDocID:int,PlayerDateOfBirth:str,WageredNumber:int,AgencyID:int}"
+    Decodes a single bet entry with the format:
+    "PlayerName:str,PlayerSurname:str,PlayerDocID:int,PlayerDateOfBirth:str,WageredNumber:int,AgencyID:int"
     """
     msg = msg.strip('{}')
     keys_and_values = msg.split(',')

@@ -36,6 +36,7 @@ add_clients() {
       - CLI_LOG_LEVEL=DEBUG
     volumes:
       - ./client/config.yaml:/config.yaml:ro
+      - ./.data/agency-$i.csv:/agency-$i.csv
     networks:
       - testing_net
     depends_on:

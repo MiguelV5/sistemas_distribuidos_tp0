@@ -84,31 +84,14 @@ func InitLogger(logLevel string) error {
 // PrintConfig Print all the configuration parameters of the program.
 // For debugging purposes only
 func PrintConfig(v *viper.Viper) {
-	logrus.Infof("action: config | result: success | client_id: %s | server_address: %s | loop_lapse: %v | loop_period: %v | log_level: %s",
+	logrus.Infof("action: config | result: success | client_id: %s | server_address: %s | loop_lapse: %v | loop_period: %v | log_level: %s | bets_per_chunk: %s",
 		v.GetString("id"),
 		v.GetString("server.address"),
 		v.GetDuration("loop.lapse"),
 		v.GetDuration("loop.period"),
 		v.GetString("log.level"),
+		v.GetString("bets_data.bets_per_chunk"),
 	)
-	logrus.Infof("action: config_test_bet | result: success | player_name: %s | player_surname: %s | player_doc_id: %d | player_date_of_birth: %s | wagered_number: %d",
-		v.GetString("testBet.name"),
-		v.GetString("testBet.surname"),
-		v.GetInt("testBet.document_id"),
-		v.GetString("testBet.date_of_birth"),
-		v.GetInt("testBet.wagered_number"),
-	)
-}
-
-func initializeTestBet(v *viper.Viper) common.Bet {
-	return common.Bet{
-		PlayerName:        v.GetString("testBet.name"),
-		PlayerSurname:     v.GetString("testBet.surname"),
-		PlayerDocID:       v.GetInt("testBet.document_id"),
-		PlayerDateOfBirth: v.GetString("testBet.date_of_birth"),
-		WageredNumber:     v.GetInt("testBet.wagered_number"),
-		AgencyID:          v.GetInt("id"),
-	}
 }
 
 func main() {
@@ -124,15 +107,16 @@ func main() {
 	// Print program config with debugging purposes
 	PrintConfig(v)
 
-	testBet := initializeTestBet(v)
-
 	clientConfig := common.ClientConfig{
 		ServerAddress: v.GetString("server.address"),
 		ID:            v.GetString("id"),
 		LoopLapse:     v.GetDuration("loop.lapse"),
 		LoopPeriod:    v.GetDuration("loop.period"),
+		BetsPerChunk:  v.GetInt("bets_data.bets_per_chunk"),
 	}
 
 	client := common.NewClient(clientConfig)
-	client.StartClientLoop(testBet)
+	client.StartClientLoop()
+	log.Infof("action: loop_finished | result: success | client_id: %v", clientConfig.ID)
+
 }

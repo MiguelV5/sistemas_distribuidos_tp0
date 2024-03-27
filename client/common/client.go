@@ -2,6 +2,8 @@ package common
 
 import (
 	"bufio"
+	"encoding/csv"
+	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -17,6 +19,7 @@ type ClientConfig struct {
 	ServerAddress string
 	LoopLapse     time.Duration
 	LoopPeriod    time.Duration
+	BetsPerChunk  int
 }
 
 // Client Entity that encapsulates how
@@ -54,15 +57,8 @@ func (c *Client) createClientSocket() error {
 // This function avoids the short-write problem
 func (c *Client) sendMessage(msg string) error {
 	writer := bufio.NewWriter(c.conn)
-	_, err := writer.WriteString(msg)
-	if err != nil {
-		log.Fatalf("action: send_message | result: fail | client_id: %v | error: %v",
-			c.config.ID,
-			err,
-		)
-		return err
-	}
-	err = writer.Flush()
+	writer.WriteString(msg)
+	err := writer.Flush()
 	if err != nil {
 		log.Fatalf("action: flush_message | result: fail | client_id: %v | error: %v",
 			c.config.ID,
@@ -105,62 +101,192 @@ func (c *Client) handleShutdown(signalReceiver chan os.Signal) {
 }
 
 // StartClientLoop Send messages to the client until some time threshold is met
-func (c *Client) StartClientLoop(testBet Bet) {
+func (c *Client) StartClientLoop() {
 	signalReceiver := c.initializeSignalReceiver()
+
+	agencyFile, err := os.Open("agency-" + c.config.ID + ".csv")
+	if err != nil {
+		log.Fatalf("action: open_agency_file | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+		)
+	}
+	defer agencyFile.Close()
+	agencyFileReader := csv.NewReader(agencyFile)
 
 	// autoincremental msgToSendID to identify every message sent
 	msgToSendID := 1
 
-loop:
-	// Send messages if the loopLapse threshold has not been surpassed
-	for timeout := time.After(c.config.LoopLapse); ; {
+	for {
+		// Create the connection the server
+		c.createClientSocket() // TO BE MOVED OUT OF THE LOOP ON EXERCISE 8
+		defer c.conn.Close()   // TO BE MOVED OUT OF THE LOOP ON EXERCISE 8
+
 		select {
-		case <-timeout:
-			log.Infof("action: timeout_detected | result: success | client_id: %v",
-				c.config.ID,
-			)
-			break loop
 		case <-signalReceiver:
 			c.handleShutdown(signalReceiver)
-			break loop
-
+			return
 		default:
 		}
 
-		// Create the connection the server in every loop iteration. Send an
-		c.createClientSocket()
+		shouldReturn := c.handleCommunicationWithServer(agencyFileReader, &msgToSendID)
+		if shouldReturn {
+			return
+		}
 
-		msgToSend := testBet.ToString() + DELIMITER
+	}
+
+}
+
+// Handles the communication with the server by reading the agency file and sending its contents in chunks.
+// Returns a boolean indicating whether the caller should return due to an unexpected error such as a sudden connection closure.
+func (c *Client) handleCommunicationWithServer(agencyFileReader *csv.Reader, msgToSendID *int) bool {
+	encodedBets, sizeOfCurrentChunk, amountOfBetsRead, reachedEOF := c.tryReadChunkOfBets(agencyFileReader)
+	if reachedEOF && amountOfBetsRead == 0 {
+		return true
+	} else if reachedEOF && amountOfBetsRead > 0 {
+		c.config.BetsPerChunk = amountOfBetsRead
+	}
+
+	if sizeOfCurrentChunk > MAX_CHUNK_SIZE_PER_MSG {
+		shouldReturn := c.handleDeliveryOfExceedingChunks(amountOfBetsRead, encodedBets, msgToSendID)
+		if shouldReturn {
+			return true
+		}
+	} else {
+		shouldReturn := c.handleDeliveryOfSingleChunk(encodedBets, msgToSendID)
+		if shouldReturn {
+			return true
+		}
+	}
+	return false
+}
+
+// Handles the delivery of a single chunk when the amount of bets read made the current chunk fit in a single message.
+// It sends the chunk to the server and waits for an acknowledgment.
+// Returns a boolean indicating whether the caller should return due to an unexpected error such as a sudden connection closure.
+func (c *Client) handleDeliveryOfSingleChunk(encodedBets []string, msgToSendID *int) bool {
+	msgToSend := produceMsgToSendFromEncodedBets(c.config.BetsPerChunk, encodedBets)
+	err := c.sendMessage(msgToSend)
+	if err != nil {
+		return true
+	}
+
+	receivedMsg, err := c.receiveMessage()
+	if err != nil {
+		return true
+	}
+	if receivedMsg == CHUNK_ACK_MSG_FORMAT_FROM_SV {
+		log.Infof("action: chunk_ack_received | result: success | client_id: %v | chunk_id: %v",
+			c.config.ID,
+			*msgToSendID,
+		)
+	} else {
+		log.Errorf("action: message_mismatch | result: fail | client_id: %v | chunk_id: %v | received_message: %v",
+			c.config.ID,
+			*msgToSendID,
+			receivedMsg,
+		)
+		return true
+	}
+	c.conn.Close() // TO BE REMOVED ON EXERCISE 8
+
+	(*msgToSendID)++
+	return false
+}
+
+// Handles the delivery of chunks when the amount of bets read made the current chunk exceed the maximum size of a message.
+// It divides the chunk into smaller chunks with the default amount of bets per chunk and sends them to the server.
+// Returns a boolean indicating whether the caller should return due to an unexpected error such as a sudden connection closure.
+func (c *Client) handleDeliveryOfExceedingChunks(amountOfBetsRead int, encodedBets []string, msgToSendID *int) bool {
+	betsPerChunkCorrectlyAdjusted := false
+	if amountOfBetsRead%DEFAULT_BETS_PER_CHUNK != 0 {
+		amountOfBetsInFirstChunk := amountOfBetsRead % DEFAULT_BETS_PER_CHUNK
+		c.config.BetsPerChunk = amountOfBetsInFirstChunk
+	} else {
+		c.config.BetsPerChunk = DEFAULT_BETS_PER_CHUNK
+	}
+
+	for len(encodedBets) > 0 {
+		msgToSend := produceMsgToSendFromEncodedBets(c.config.BetsPerChunk, encodedBets)
 		err := c.sendMessage(msgToSend)
 		if err != nil {
-			return
+			return true
 		}
 
 		receivedMsg, err := c.receiveMessage()
-		msgToSendID++
-		c.conn.Close()
 		if err != nil {
-			return
+			return true
 		}
-
-		if receivedMsg == msgToSend {
-			log.Infof("action: apuesta_enviada | result: success | dni: %d | numero: %d",
-				testBet.PlayerDocID,
-				testBet.WageredNumber,
-			)
-			return
-		} else {
-			log.Errorf("action: message_mismatch | result: fail | client_id: %v | sent_message: %v | received_message: %v",
+		if receivedMsg == CHUNK_ACK_MSG_FORMAT_FROM_SV {
+			log.Infof("action: chunk_ack_received | result: success | client_id: %v | chunk_id: %v",
 				c.config.ID,
-				msgToSend,
+				*msgToSendID,
+			)
+		} else {
+			log.Errorf("action: message_mismatch | result: fail | client_id: %v | chunk_id: %v | received_message: %v",
+				c.config.ID,
+				*msgToSendID,
 				receivedMsg,
 			)
-			return
+			return true
+		}
+		c.conn.Close() // TO BE REMOVED ON EXERCISE 8
+
+		encodedBets = encodedBets[c.config.BetsPerChunk:]
+		if !betsPerChunkCorrectlyAdjusted {
+			betsPerChunkCorrectlyAdjusted = true
+			c.config.BetsPerChunk = DEFAULT_BETS_PER_CHUNK
 		}
 
-		// Wait a time between sending one message and the next one
-		// time.Sleep(c.config.LoopPeriod)
+		c.createClientSocket() // TO BE REMOVED ON EXERCISE 8
+		(*msgToSendID)++
 	}
+	c.conn.Close() // TO BE REMOVED ON EXERCISE 8
+	return false
+}
 
-	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
+func produceMsgToSendFromEncodedBets(betsPerChunk int, encodedBets []string) string {
+	msgToSend := ""
+	for i := 0; i < betsPerChunk; i++ {
+		if i == betsPerChunk-1 {
+			msgToSend += encodedBets[i] + DELIMITER
+		} else {
+			msgToSend += encodedBets[i] + ","
+		}
+	}
+	return msgToSend
+}
+
+// Reads bets from the agency file up to its limit.
+// This limit is reached when either:
+// - The amount of bets read is equal to the maximum amount of bets per chunk defined in the client configuration
+// - The size of the current chunk exceeds the maximum size of a message (8 KiB; though it still returns the list with the bets that could be read until that point in order to send them in smaller default-sized chunks later on)
+// - The end of the file is reached
+// Returns the list of bets read, the current size of the chunk, the amount of bets read and a boolean indicating whether the end of the file was reached
+func (c *Client) tryReadChunkOfBets(agencyFileReader *csv.Reader) ([]string, int, int, bool) {
+	encodedBets := []string{}
+	sizeOfCurrentChunk := 0
+
+	amountOfBetsRead := 0
+	reachedEOF := false
+
+	for (amountOfBetsRead < c.config.BetsPerChunk) && (sizeOfCurrentChunk < MAX_CHUNK_SIZE_PER_MSG) && !reachedEOF {
+		recordAsBet, err := ReadBetFromCsvRecord(agencyFileReader, c.config.ID)
+		if err != io.EOF && err != nil {
+			log.Fatalf("action: read_agency_file | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+		}
+		if err == io.EOF {
+			reachedEOF = true
+			continue
+		}
+		amountOfBetsRead++
+
+		encodedBets = append(encodedBets, recordAsBet.ToString())
+		sizeOfCurrentChunk += len(recordAsBet.ToString()) + 1 // Due to incoming separation commas
+	}
+	return encodedBets, sizeOfCurrentChunk, amountOfBetsRead, reachedEOF
 }
